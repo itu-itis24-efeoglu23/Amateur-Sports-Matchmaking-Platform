@@ -2,7 +2,7 @@
 -- Owner: Furkan Efeoğlu
 -- A user's skill level and preferred position in one sport.
 -- Resolves the many-to-many relationship between users and sports.
--- Requirements: FR-3
+-- Requirements: FR-03
 -- Depends on: 01_users.sql, 02_sports.sql
 
 CREATE TABLE user_sport_profiles (

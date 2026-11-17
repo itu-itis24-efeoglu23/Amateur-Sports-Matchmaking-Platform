@@ -1,14 +1,14 @@
 # Milestone 2 — users and user_sport_profiles
 
 **Owner:** Furkan Efeoğlu (150230003)
-**Related requirements:** FR-1, FR-2, FR-3, NFR-1
+**Related requirements:** FR-01, FR-02, FR-03, NFR-01
 
 ## 1. Data Requirements
 
 | ID | Data to store | Rules | Supports |
 |---|---|---|---|
-| DR-1 | User accounts: username, email, password hash, full name, city, birth date, bio, role, registration date | Username and email are unique; role is `user` or `admin` (default `user`); only a salted password hash is stored, never the plain password | FR-1, FR-2, NFR-1 |
-| DR-3 | Sport profiles: a user's skill level and preferred position in a sport, and when the profile was last updated | A user has at most one profile per sport; skill level is 1 (beginner) to 5 (expert); position is optional | FR-3 |
+| DR-01 | User accounts: username, email, password hash, full name, city, birth date, bio, role, registration date | Username and email are unique; role is `user` or `admin` (default `user`); only a salted password hash is stored, never the plain password | FR-01, FR-02, NFR-01 |
+| DR-03 | Sport profiles: a user's skill level and preferred position in a sport, and when the profile was last updated | A user has at most one profile per sport; skill level is 1 (beginner) to 5 (expert); position is optional | FR-03 |
 
 A player's average rating is **not stored** in `users`; it is computed from `player_reviews` so it can never become outdated.
 
@@ -84,7 +84,7 @@ All queries use parameterized SQL (`%s` placeholders) through psycopg.
 | Update | Change skill or position | `UPDATE user_sport_profiles SET skill_level = %s, preferred_position = %s, updated_at = CURRENT_TIMESTAMP WHERE user_id = %s AND sport_id = %s;` |
 | Delete | Remove a sport | `DELETE FROM user_sport_profiles WHERE user_id = %s AND sport_id = %s;` |
 
-## 6. Complex Query — Q1: Active players of a sport
+## 6. Complex Query — Q-01: Active players of a sport
 
 **Purpose:** list players who attended at least 3 matches of a sport in the last 30 days, with their skill level and average received rating. Organizers can use it to find reliable players.
 **Techniques:** 4-table join, GROUP BY … HAVING, correlated subquery.

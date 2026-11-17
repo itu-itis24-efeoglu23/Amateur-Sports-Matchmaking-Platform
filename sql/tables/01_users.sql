@@ -1,7 +1,7 @@
 -- Table: users
 -- Owner: Furkan Efeoğlu
 -- Registered accounts of players, organizers, team captains and admins.
--- Requirements: FR-1, FR-2, NFR-1
+-- Requirements: FR-01, FR-02, NFR-01
 
 CREATE TABLE users (
     user_id        SERIAL       PRIMARY KEY,
