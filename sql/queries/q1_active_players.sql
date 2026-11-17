@@ -1,6 +1,6 @@
--- Q1: Active players of a sport
+-- Q-01: Active players of a sport
 -- Owner: Furkan Efeoğlu
--- Requirements: FR-3, FR-12
+-- Requirements: FR-03, FR-12
 --
 -- Lists players who attended at least 3 matches of a given sport in the last
 -- 30 days, with their skill level in that sport and the average rating they
