@@ -4,7 +4,7 @@
 --
 -- Lists players who attended at least 3 matches of a given sport in the last
 -- 30 days, with their skill level in that sport and the average rating they
--- received from other players.
+-- received from other players (hidden reviews excluded).
 -- Techniques: 4-table join, GROUP BY ... HAVING, correlated subquery.
 -- Parameter: %(sport_id)s (passed by the Flask app with psycopg)
 
@@ -13,7 +13,8 @@ SELECT u.username,
        COUNT(*) AS matches_played,
        ROUND((SELECT AVG(r.rating)
               FROM player_reviews r
-              WHERE r.reviewed_id = u.user_id), 2) AS avg_rating
+              WHERE r.reviewed_id = u.user_id
+                AND NOT r.is_hidden), 2) AS avg_rating   -- hidden reviews are not counted (FR-21)
 FROM users u
 JOIN user_sport_profiles p ON p.user_id = u.user_id
                           AND p.sport_id = %(sport_id)s
