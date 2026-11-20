@@ -79,3 +79,42 @@ Table constraints:
 | R4 | A participant receives reviews | 1:N (a participation has 0..* received reviews; each review has exactly 1 reviewed player) | FK (match_id, reviewed_id) → match_participants |
 
 Together, R1 and R2 form an M:N relationship between users and teams over time, with at most one pending request per pair at any moment. R3 and R4 form an M:N "rates" relationship between users, limited to players of the same match and to one review per pair per match.
+
+## 5. CRUD Operations
+
+All queries use parameterized SQL (`%s` placeholders) through psycopg.
+
+| Operation | Page / action | SQL |
+|---|---|---|
+| Create | Apply to a team | `INSERT INTO team_requests (team_id, user_id, request_type, message) VALUES (%s, %s, 'join', %s) RETURNING request_id;` |
+| Create | Invite a player (captain) | `INSERT INTO team_requests (team_id, user_id, request_type, message) VALUES (%s, %s, 'invite', %s) RETURNING request_id;` (Flask first checks that the current user is the team's captain) |
+| Read | My pending requests and invitations | `SELECT tr.request_id, t.name, tr.request_type, tr.message, tr.created_at FROM team_requests tr JOIN teams t ON t.team_id = tr.team_id WHERE tr.user_id = %s AND tr.status = 'pending' ORDER BY tr.created_at DESC;` |
+| Read | Pending applications to my teams (captain) | `SELECT tr.request_id, t.name, u.username, tr.message, tr.created_at FROM team_requests tr JOIN teams t ON t.team_id = tr.team_id JOIN users u ON u.user_id = tr.user_id WHERE t.captain_id = %s AND tr.request_type = 'join' AND tr.status = 'pending' ORDER BY t.name, tr.created_at;` |
+| Update | Accept | In **one transaction**: `UPDATE team_requests SET status = 'accepted', responded_at = CURRENT_TIMESTAMP WHERE request_id = %s AND status = 'pending' RETURNING team_id, user_id;` then `INSERT INTO team_members (team_id, user_id) VALUES (%s, %s);` If either statement fails, the whole transaction is rolled back. A join request is accepted by the captain, an invitation by the player. |
+| Update | Reject | `UPDATE team_requests SET status = 'rejected', responded_at = CURRENT_TIMESTAMP WHERE request_id = %s AND status = 'pending';` |
+| Update | Cancel (by the sender) | `UPDATE team_requests SET status = 'cancelled', responded_at = CURRENT_TIMESTAMP WHERE request_id = %s AND status = 'pending';` |
+| Delete | — | Requests are not deleted by users, so the history is kept; they are removed by CASCADE when the team or the user is deleted |
+| Create | Rate a player after a match | `INSERT INTO player_reviews (match_id, reviewer_id, reviewed_id, rating, comment) VALUES (%s, %s, %s, %s, %s);` (Flask first checks that the match is completed and both players attended) |
+| Read | A player's reviews | `SELECT u.username, r.rating, r.comment, r.created_at FROM player_reviews r JOIN users u ON u.user_id = r.reviewer_id WHERE r.reviewed_id = %s ORDER BY r.created_at DESC;` |
+| Read | A player's average rating | `SELECT COUNT(*), ROUND(AVG(rating), 2) FROM player_reviews WHERE reviewed_id = %s;` |
+| Update | Edit my review | `UPDATE player_reviews SET rating = %s, comment = %s WHERE review_id = %s AND reviewer_id = %s;` |
+| Delete | Delete my review | `DELETE FROM player_reviews WHERE review_id = %s AND reviewer_id = %s;` |
+
+The `AND status = 'pending'` condition in the update statements makes sure an already answered request is never answered again; the `AND reviewer_id = %s` condition makes sure users can only change their own reviews.
+
+## 6. Complex Query — Q-05: Top-rated players
+
+**Purpose:** list, for every sport, the players whose average received rating in that sport is above the average of all ratings given in that sport (at least 3 reviews required). Captains can use it to find good players to invite, and players can see who is rated highly in their sport.
+**Techniques:** 5-table join, GROUP BY … HAVING, correlated subquery on the outer group's sport (in SELECT and in HAVING).
+**SQL:** `sql/queries/q5_top_rated_players.sql`
+
+## 7. Data Population (requests and reviews)
+
+Sample data is generated with a Python script using the Faker library (Turkish locale), after users, teams, team members, matches and participants are populated:
+
+- 80 team requests: about 60% join requests and 40% invitations
+- Status distribution: about 25% pending, 50% accepted, 20% rejected, 5% cancelled; answered requests get a response time 0–7 days after the request
+- At most one pending request per team and player; the captain is never the player of a request
+- Every accepted request has a matching row in `team_members`
+- About 1,450 reviews, created only between players who both attended the same completed match, within 3 days after the match
+- Ratings follow a realistic distribution: most are 3–5; about 40% of reviews have a comment
