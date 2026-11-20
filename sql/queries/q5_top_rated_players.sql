@@ -1,4 +1,4 @@
--- Q5: Top-rated players
+-- Q-05: Top-rated players
 -- Owner: Baturalp Taha Yılmaz
 -- Requirements: FR-15
 --

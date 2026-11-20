@@ -1,14 +1,14 @@
 # Milestone 2 — team_requests and player_reviews
 
 **Owner:** Baturalp Taha Yılmaz (150220302)
-**Related requirements:** FR-13, FR-14, FR-15, NFR-3
+**Related requirements:** FR-13, FR-14, FR-15, NFR-03
 
 ## 1. Data Requirements
 
 | ID | Data to store | Rules | Supports |
 |---|---|---|---|
 | DR-10 | Team requests: the team, the player, whether the player applied (`join`) or the captain invited (`invite`), status, an optional message, when the request was sent and when it was answered | Request type is `join` or `invite`; status is `pending`, `accepted`, `rejected` or `cancelled` (default `pending`); a pending request has no response time and an answered one always has one, not earlier than the request; a player can have at most one pending request per team; answered requests are kept as history | FR-13, FR-14 |
-| DR-11 | Player reviews: the match, the player who gives the review, the player who receives it, a rating, an optional comment and the review date | Rating is 1 (poor) to 5 (excellent); both players must be participants of the same match; a player cannot rate themselves; a player rates another player at most once per match | FR-15, NFR-3 |
+| DR-11 | Player reviews: the match, the player who gives the review, the player who receives it, a rating, an optional comment and the review date | Rating is 1 (poor) to 5 (excellent); both players must be participants of the same match; a player cannot rate themselves; a player rates another player at most once per match | FR-15, NFR-03 |
 
 A player's average rating is **not stored**; it is computed from `player_reviews` so it can never become outdated.
 
@@ -64,7 +64,7 @@ Table constraints:
 - **One table for join requests and invitations.** Both have the same columns and the same life cycle (pending → accepted / rejected / cancelled); only the sender differs. A `request_type` column avoids two almost identical tables and lets a player see all pending requests and invitations with one query. `user_id` is always the player, never the captain; the captain is found through `teams.captain_id`.
 - **Partial unique index instead of UNIQUE (team_id, user_id).** A plain UNIQUE constraint would stop a player from applying again after a rejection, or the old request would have to be deleted and the history lost. The partial index only covers rows with `status = 'pending'`, so any number of answered requests can stay as history while the database still guarantees at most one open request per team and player. It also blocks a pending join request and a pending invitation for the same pair at the same time.
 - **Status and response time are checked together.** `(status = 'pending') = (responded_at IS NULL)` makes "accepted without a response time" and "pending with a response time" impossible, and the second CHECK keeps the answer from being earlier than the request.
-- **Reviews reference match_participants, not users.** The two composite foreign keys point to the primary key (match_id, user_id) of `match_participants`, so the database itself guarantees that the reviewer and the reviewed player both took part in that match (NFR-3: a user cannot rate a match they did not play). This requires `match_participants` to have the primary key (match_id, user_id).
+- **Reviews reference match_participants, not users.** The two composite foreign keys point to the primary key (match_id, user_id) of `match_participants`, so the database itself guarantees that the reviewer and the reviewed player both took part in that match (NFR-03: a user cannot rate a match they did not play). This requires `match_participants` to have the primary key (match_id, user_id).
 - **The 'attended' and 'completed' checks are done in Flask.** A foreign key cannot require `match_participants.status = 'attended'` and a CHECK constraint cannot read other tables, so before inserting a review the application checks that the match is completed and that both players have the status `attended`. The database guarantees participation; the application guarantees attendance.
 - **Rules that need other tables are also checked in Flask:** an invitation is only sent by the team's captain, the captain is never the `user_id` of a request, and a request is not created for a player who is already a member. When a request is accepted, the primary key of `team_members` still prevents a double membership.
 - **ON DELETE CASCADE:** a request has no meaning without its team or player, and a review has no meaning without the participations it refers to. When a team, user or match (and so its participants) is deleted, the related requests and reviews are removed automatically.

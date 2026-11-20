@@ -2,7 +2,7 @@
 -- Owner: Baturalp Taha Yılmaz
 -- Ratings (1-5) and optional comments that players give each other after a
 -- match they both played in.
--- Requirements: FR-15, NFR-3
+-- Requirements: FR-15, NFR-03
 -- Depends on: 01_users.sql, 07_matches.sql, 08_match_participants.sql
 
 CREATE TABLE player_reviews (
