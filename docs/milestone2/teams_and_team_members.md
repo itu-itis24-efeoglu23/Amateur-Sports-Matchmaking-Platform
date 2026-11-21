@@ -21,7 +21,7 @@ Team statistics (matches played, wins, draws, losses, goals scored, goals conced
 
 ## 3. Relational Schema
 
-### teams
+### teams (`sql/tables/05_teams.sql`)
 
 | Column | Data type | Key / constraints |
 |---|---|---|
@@ -36,11 +36,11 @@ Team statistics (matches played, wins, draws, losses, goals scored, goals conced
 Table constraints and indexes:
 
 - Unique index `uq_teams_sport_name` ON (sport_id, LOWER(TRIM(name)))
-- Deferrable composite FK `fk_teams_captain_is_member` ON (team_id, captain_id) → team_members(team_id, user_id) ON DELETE RESTRICT DEFERRABLE INITIALLY DEFERRED
+- Deferrable composite FK `fk_teams_captain_is_member` ON (team_id, captain_id) → team_members(team_id, user_id) ON DELETE RESTRICT DEFERRABLE INITIALLY DEFERRED (added at the end of `06_team_members.sql` after both tables are created)
 - Index `idx_teams_sport_city` ON (sport_id, city)
 - Index `idx_teams_captain` ON (captain_id)
 
-### team_members
+### team_members (`sql/tables/06_team_members.sql`)
 
 | Column | Data type | Key / constraints |
 |---|---|---|
@@ -56,7 +56,7 @@ Table constraints and indexes:
 
 **Design decisions**
 
-- **Deferrable captain-member foreign key (`fk_teams_captain_is_member`).** Enforces at the database level that `captain_id` is always a member of `team_members` for that `team_id` (NFR-03). Because it is `DEFERRABLE INITIALLY DEFERRED`, creating a team and inserting the captain's `team_members` row can happen inside a single transaction without chicken-and-egg lock failures. It also prevents removing or leaving the captain while they are still listed as `captain_id` (`ON DELETE RESTRICT`).
+- **Deferrable captain-member foreign key (`fk_teams_captain_is_member`).** Enforces at the database level that `captain_id` is always a member of `team_members` for that `team_id` (NFR-03). Because `05_teams.sql` runs before `06_team_members.sql` during sequential schema loading, the `ALTER TABLE teams ADD CONSTRAINT ...` statement is placed at the end of `06_team_members.sql` after both tables exist. Being `DEFERRABLE INITIALLY DEFERRED`, creating a team and inserting the captain's `team_members` row can happen inside a single transaction without chicken-and-egg lock failures, while `ON DELETE RESTRICT` blocks removing or leaving the captain before transferring captaincy.
 - **Case-insensitive team name uniqueness per sport (`uq_teams_sport_name`).** Two teams can share a name across different sports, or have distinct names within the same sport, while duplicate/near-duplicate names (`"Kartal SK"` vs `"kartal sk"`) in the same sport are blocked.
 - **Delete behaviors (`RESTRICT`, `CASCADE`, and `SET NULL` on `matches`).** A sport cannot be deleted while teams reference it (`ON DELETE RESTRICT`). Deleting a team cascades to `team_members` and `team_requests`, while `matches.home_team_id` and `matches.away_team_id` use `ON DELETE SET NULL` so match history is preserved. Deleting a user cascades to `team_members`, and if they were a captain, captaincy must be transferred or the team deleted first (FR-02, FR-08).
 - **Rules coordinated in Flask / transactions:** transferring captaincy updates `teams.captain_id` only to an existing member of `team_members` (FR-19); when the last member leaves, the application deletes the empty team (FR-08); proposing/accepting a team match (`FR-20`) verifies both teams share the same `sport_id` and restricts match joining to members of `home_team_id` and `away_team_id` on their respective sides.
@@ -91,8 +91,8 @@ All queries use parameterized SQL (`%s` placeholders) through psycopg. List page
 
 ## 6. Complex Query — Q-03: Team statistics
 
-**Purpose:** list each team with its member count, completed match statistics (matches played, wins, draws, losses, goals scored, goals conceded), and the average rating of its members across non-hidden reviews (FR-09). Helps users compare teams and evaluate team reliability.
-**Techniques:** multiple joins, conditional aggregation (`CASE WHEN` / `FILTER`), nested subquery.
+**Purpose:** list each team with its member count, completed match statistics (matches played, wins, draws, losses, goals scored, goals conceded), and the average rating of its members across non-hidden reviews (FR-09). Member counts and match statistics are aggregated separately to prevent row multiplication across joins.
+**Techniques:** CTEs, scalar subquery (`IN`), joins, conditional aggregation (`CASE WHEN`).
 **SQL:** `sql/queries/q3_team_statistics.sql`
 
 ## 7. Data Population
