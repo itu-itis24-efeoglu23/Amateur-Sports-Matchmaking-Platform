@@ -2,7 +2,7 @@
 -- Owner: Abdullah Eren Erentürk
 -- Amateur sports teams formed by users, managed by a team captain.
 -- Requirements: FR-07, FR-08, FR-09, FR-19, FR-20, NFR-03
--- Depends on: users, sports, team_members
+-- Depends on: users, sports
 
 CREATE TABLE teams (
     team_id      SERIAL       PRIMARY KEY,
@@ -17,15 +17,6 @@ CREATE TABLE teams (
 -- A team's name must be unique within the same sport (case-insensitive / trimmed).
 CREATE UNIQUE INDEX uq_teams_sport_name
     ON teams (sport_id, LOWER(TRIM(name)));
-
--- The captain must always be a member of the team (NFR-03, FR-08, FR-19).
--- Deferred so creating a team and inserting its captain into team_members can happen in one transaction.
-ALTER TABLE teams
-    ADD CONSTRAINT fk_teams_captain_is_member
-    FOREIGN KEY (team_id, captain_id)
-    REFERENCES team_members (team_id, user_id)
-    ON DELETE RESTRICT
-    DEFERRABLE INITIALLY DEFERRED;
 
 CREATE INDEX idx_teams_sport_city ON teams (sport_id, city);
 CREATE INDEX idx_teams_captain ON teams (captain_id);
