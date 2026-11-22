@@ -5,7 +5,7 @@
 -- Lists players who attended at least 3 matches of a given sport in the last
 -- 30 days, with their skill level in that sport and the average rating they
 -- received from other players (hidden reviews excluded).
--- Techniques: 4-table join, GROUP BY ... HAVING, correlated subquery.
+-- Techniques: 5-table join, GROUP BY ... HAVING, correlated subquery.
 -- Parameter: %(sport_id)s (passed by the Flask app with psycopg)
 
 SELECT u.username,
